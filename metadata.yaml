@@ -1,0 +1,11 @@
+name: astrbot_plugin_labyrinth
+display_name: 疯狂迷宫
+desc: QQ 官方机器人群聊《Labyrinth 疯狂迷宫》桌游，支持推牌、移动、私密目标按钮与棋盘图片。
+short_desc: QQ 官方群聊《疯狂迷宫》，推牌改变迷宫，抢先集齐宝藏回到起点。
+version: v0.1.0
+author: lishining
+repo: https://github.com/li-shi-ning/astrbot_plugin_labyrinth
+astrbot_version: ">=4.0"
+support_platforms:
+  - qq_official
+  - qq_official_webhook

@@ -1,0 +1,14 @@
+{
+  "board_image": {
+    "description": "是否把棋盘渲染成图片，通过 QQ 富媒体消息发送。",
+    "type": "bool",
+    "hint": "开启后用本地渲染的 PNG（富媒体上传）；失败会自动退回文字牌桌。",
+    "default": true
+  },
+  "board_font_path": {
+    "description": "渲染棋盘图片时使用的中文字体路径。",
+    "type": "string",
+    "hint": "留空会自动查找 AstrBot 自带的 /AstrBot/data/font.ttf 或系统中文字体。",
+    "default": ""
+  }
+}
