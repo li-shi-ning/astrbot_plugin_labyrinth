@@ -86,10 +86,14 @@ def test_push_then_move_flow() -> None:
     game.start("u1")
     text = flat(service.dispatch("g1", "u1", "甲", "推 上 2"))
     assert "推入" in text and game.phase == PHASE_MOVE
-    # 走不到的地方会被拒绝
+    # 越界坐标一定被拒
     with pytest.raises(GameError):
-        service.dispatch("g1", "u1", "甲", "走 4 4")
-    assert "回合" in flat(service.dispatch("g1", "u1", "甲", "停"))
+        service.dispatch("g1", "u1", "甲", "走 0 1")
+    # 走到一个真实可达格（棋盘随机，所以从引擎里取）
+    target = sorted(game.reachable(game.players[0]))[-1]
+    assert "移动完成" in flat(
+        service.dispatch("g1", "u1", "甲", f"走 {target[0] + 1} {target[1] + 1}")
+    )
     assert game.phase == PHASE_PUSH
     assert game.current is not None and game.current.user_id == "u2"
 

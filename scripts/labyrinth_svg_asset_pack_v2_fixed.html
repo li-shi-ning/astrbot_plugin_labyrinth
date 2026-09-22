@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Labyrinth SVG Asset Pack v2.1 Fixed</title>
+<style>
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif;
+  background:#171a20;
+  color:#f4efe4;
+}
+.wrap{max-width:1450px;margin:auto;padding:26px}
+h1{margin:0 0 8px}
+h2{margin:0 0 14px}
+p{color:#bfc6d0;line-height:1.6}
+.panel{
+  background:#222832;border:1px solid #39414d;border-radius:16px;
+  padding:18px;margin:18px 0;box-shadow:0 12px 32px #0005;
+}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:13px}
+.asset{
+  background:#151a21;border:1px solid #353d49;border-radius:13px;
+  padding:12px;text-align:center;
+}
+.asset code{display:block;color:#e2c16e;font-size:11px;margin:7px 0}
+.tile{width:128px;height:128px;filter:drop-shadow(0 7px 6px #0007)}
+.icon{width:82px;height:82px}
+.player{width:72px;height:72px}
+button{
+  border:0;border-radius:8px;background:#d9ad46;color:#1c1c1c;
+  padding:7px 10px;font-weight:700;cursor:pointer;font-size:12px
+}
+button:hover{filter:brightness(1.08)}
+.row{display:flex;gap:15px;flex-wrap:wrap}
+.board{
+  display:grid;grid-template-columns:repeat(7,88px);gap:0;
+  width:max-content;background:#15335c;border:10px solid #15335c;
+  box-shadow:0 12px 28px #0007;
+}
+.cell{width:88px;height:88px;position:relative}
+.cell>svg.base{width:88px;height:88px;display:block}
+.overlay{
+  width:38px;height:38px;position:absolute;left:25px;top:25px;
+  filter:drop-shadow(0 2px 2px #0007)
+}
+.pawn{
+  width:29px;height:29px;position:absolute;left:5px;bottom:5px;
+  filter:drop-shadow(0 2px 2px #0009)
+}
+.note{
+  background:#11161d;border:1px solid #353d49;border-radius:10px;
+  padding:12px;font:13px ui-monospace,SFMono-Regular,Menlo,monospace;
+  color:#d5dae2;white-space:pre-wrap
+}
+.spec{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+  gap:10px;margin:12px 0
+}
+.spec>div{background:#171d25;border-radius:10px;padding:11px;border:1px solid #343c48}
+.badge{color:#e8bf5a;font-weight:750}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Labyrinth SVG Asset Pack v2.1（道路显示修复版）</h1>
+<p>
+参考经典 Labyrinth 的石砌迷宫视觉重新设计。不是复制原版插画，而是保留它的
+<strong>暖黄色石墙 + 象牙白通道 + 深色石缝 + 蓝色棋盘衬底</strong>这套视觉语言。
+这一版已修复道路被边框底色遮住的问题；同时 <strong>所有 I / L / T 通道严格使用同一套几何参数</strong>。
+</p>
+
+<div class="panel">
+<h2>统一几何规范</h2>
+<div class="spec">
+  <div><span class="badge">Tile</span><br>100 × 100 viewBox</div>
+  <div><span class="badge">通道净宽</span><br>46 units</div>
+  <div><span class="badge">通道边界</span><br>27 / 73</div>
+  <div><span class="badge">中心交汇区域</span><br>46 × 46</div>
+  <div><span class="badge">石墙边缘线</span><br>3 units</div>
+  <div><span class="badge">转角</span><br>所有方向旋转同一 SVG</div>
+</div>
+<div class="note">因此：
+I 型、L 型、T 型在任何拼接位置的开口都严格是 46/100。
+不会再出现“直路粗、弯路细、T 路又另一种宽度”的问题。</div>
+</div>
+
+<!-- ============================================================= -->
+<!-- SVG SPRITE -->
+<!-- ============================================================= -->
+<svg width="0" height="0" style="position:absolute;left:-10000px;top:-10000px" aria-hidden="true">
+<defs>
+
+  <!-- ===== shared tile definitions ===== -->
+  <clipPath id="tileClip"><rect x="1.5" y="1.5" width="97" height="97" rx="7"/></clipPath>
+
+  <linearGradient id="floorGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#fffef8"/>
+    <stop offset=".48" stop-color="#f8f3e7"/>
+    <stop offset="1" stop-color="#e7dcc4"/>
+  </linearGradient>
+
+  <linearGradient id="stoneGrad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#f0cb71"/>
+    <stop offset=".48" stop-color="#d7a147"/>
+    <stop offset="1" stop-color="#ad6d27"/>
+  </linearGradient>
+
+  <pattern id="stonePattern" width="28" height="24" patternUnits="userSpaceOnUse">
+    <rect width="28" height="24" fill="url(#stoneGrad)"/>
+    <path d="M-2 1 L10 0 L15 6 L11 12 L-2 12Z"
+          fill="#edc76f" stroke="#80501f" stroke-width="1.15"/>
+    <path d="M12 0 L27 1 L31 7 L26 12 L11 11 L9 6Z"
+          fill="#d9a249" stroke="#7a491b" stroke-width="1.15"/>
+    <path d="M0 13 L12 12 L18 17 L14 25 L0 25 L-3 19Z"
+          fill="#c78b38" stroke="#704019" stroke-width="1.15"/>
+    <path d="M17 13 L29 12 L32 21 L25 25 L13 23 L14 17Z"
+          fill="#e2b057" stroke="#7e4a1d" stroke-width="1.15"/>
+    <path d="M2 3 Q7 1.2 11 3.4" fill="none" stroke="#ffe5a9" stroke-width="1" opacity=".72"/>
+    <path d="M15 3 Q21 1.3 25 4" fill="none" stroke="#f8d58e" stroke-width=".9" opacity=".64"/>
+  </pattern>
+
+  <filter id="paperNoise" x="-10%" y="-10%" width="120%" height="120%">
+    <feTurbulence type="fractalNoise" baseFrequency=".75" numOctaves="2" seed="8" result="n"/>
+    <feColorMatrix in="n" type="matrix"
+      values="0 0 0 0 .45
+              0 0 0 0 .34
+              0 0 0 0 .20
+              0 0 0 .075 0"/>
+    <feBlend in="SourceGraphic" mode="multiply"/>
+  </filter>
+
+  <filter id="wallDepth" x="-20%" y="-20%" width="140%" height="140%">
+    <feDropShadow dx="0" dy="1.6" stdDeviation="1.2" flood-color="#3e2511" flood-opacity=".56"/>
+  </filter>
+
+  <!--
+    IMPORTANT GEOMETRY
+    corridor width = 46
+    x/y boundaries = 27 and 73
+  -->
+
+  <!-- floor shapes -->
+  <path id="floor-i" d="M0 27H100V73H0Z"/>
+  <!-- L connects TOP + RIGHT -->
+  <path id="floor-l" d="M27 0H73V27H100V73H27Z"/>
+  <!-- T connects LEFT + TOP + RIGHT -->
+  <path id="floor-t" d="M27 0H73V27H100V73H0V27H27Z"/>
+
+  <!-- shared outer frame -->
+  <symbol id="tile-frame" viewBox="0 0 100 100">
+    <rect x="1.5" y="1.5" width="97" height="97" rx="7"
+          fill="none" stroke="#5a3619" stroke-width="3"/>
+    <rect x="4" y="4" width="92" height="92" rx="5"
+          fill="none" stroke="#f7d882" stroke-width="1.4" opacity=".72"/>
+  </symbol>
+
+  <!-- ========== STRAIGHT: LEFT + RIGHT ========== -->
+  <symbol id="tile-straight" viewBox="0 0 100 100">
+    <g clip-path="url(#tileClip)">
+      <rect width="100" height="100" fill="url(#stonePattern)"/>
+      <use href="#floor-i" fill="url(#floorGrad)" filter="url(#paperNoise)"/>
+
+      <!-- inner wall depth: ONLY internal wall edges, never across openings -->
+      <path d="M0 27H100 M0 73H100"
+            fill="none" stroke="#5b3518" stroke-width="5.2" opacity=".55"/>
+      <path d="M0 27H100 M0 73H100"
+            fill="none" stroke="#e5b95c" stroke-width="2.3"/>
+
+      <!-- occasional masonry seams along wall-facing edges -->
+      <path d="M13 22V27 M31 22V27 M50 22V27 M69 22V27 M87 22V27
+               M10 73V78 M28 73V78 M47 73V78 M66 73V78 M86 73V78"
+            stroke="#825020" stroke-width="1.2" opacity=".8"/>
+      <path d="M0 50H100" stroke="#bd9b69" stroke-width=".7" opacity=".18"/>
+    </g>
+    <use href="#tile-frame" fill="none"/>
+  </symbol>
+
+  <!-- ========== CORNER: TOP + RIGHT ========== -->
+  <symbol id="tile-corner" viewBox="0 0 100 100">
+    <g clip-path="url(#tileClip)">
+      <rect width="100" height="100" fill="url(#stonePattern)"/>
+      <use href="#floor-l" fill="url(#floorGrad)" filter="url(#paperNoise)"/>
+
+      <!-- exact corridor boundary -->
+      <path d="M27 0V73H100 M73 27H100"
+            fill="none" stroke="#5b3518" stroke-width="5.2" opacity=".55"
+            stroke-linejoin="round"/>
+      <path d="M27 0V73H100 M73 27H100"
+            fill="none" stroke="#e5b95c" stroke-width="2.3"
+            stroke-linejoin="round"/>
+
+      <!-- masonry accents -->
+      <path d="M22 10H27 M22 28H27 M22 47H27 M22 65H27
+               M38 73V78 M57 73V78 M77 73V78 M95 73V78
+               M73 22V27 M88 22V27"
+            stroke="#825020" stroke-width="1.2" opacity=".8"/>
+    </g>
+    <use href="#tile-frame" fill="none"/>
+  </symbol>
+
+  <!-- ========== T: LEFT + TOP + RIGHT ========== -->
+  <symbol id="tile-tee" viewBox="0 0 100 100">
+    <g clip-path="url(#tileClip)">
+      <rect width="100" height="100" fill="url(#stonePattern)"/>
+      <use href="#floor-t" fill="url(#floorGrad)" filter="url(#paperNoise)"/>
+
+      <!-- exact corridor boundary -->
+      <path d="M27 0V27H0 M73 0V27H100 M0 73H100"
+            fill="none" stroke="#5b3518" stroke-width="5.2" opacity=".55"
+            stroke-linejoin="round"/>
+      <path d="M27 0V27H0 M73 0V27H100 M0 73H100"
+            fill="none" stroke="#e5b95c" stroke-width="2.3"
+            stroke-linejoin="round"/>
+
+      <!-- masonry accents -->
+      <path d="M22 9H27 M22 22H27 M73 9H78 M73 22H78
+               M10 73V78 M28 73V78 M47 73V78 M66 73V78 M87 73V78"
+            stroke="#825020" stroke-width="1.2" opacity=".8"/>
+    </g>
+    <use href="#tile-frame" fill="none"/>
+  </symbol>
+
+  <!-- ==================== PLAYERS ==================== -->
+  <symbol id="player-red" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="86" rx="26" ry="7" fill="#000" opacity=".22"/>
+    <circle cx="50" cy="27" r="15" fill="#d94d42" stroke="#64231e" stroke-width="4"/>
+    <path d="M29 78C31 54 39 47 50 47S69 54 71 78Z" fill="#d94d42" stroke="#64231e" stroke-width="4"/>
+    <path d="M38 18Q50 9 62 18" fill="none" stroke="#ff8b7f" stroke-width="3" opacity=".7"/>
+  </symbol>
+  <symbol id="player-blue" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="86" rx="26" ry="7" fill="#000" opacity=".22"/>
+    <circle cx="50" cy="27" r="15" fill="#3b78c5" stroke="#183c70" stroke-width="4"/>
+    <path d="M29 78C31 54 39 47 50 47S69 54 71 78Z" fill="#3b78c5" stroke="#183c70" stroke-width="4"/>
+    <path d="M38 18Q50 9 62 18" fill="none" stroke="#8fb8ef" stroke-width="3" opacity=".7"/>
+  </symbol>
+  <symbol id="player-green" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="86" rx="26" ry="7" fill="#000" opacity=".22"/>
+    <circle cx="50" cy="27" r="15" fill="#3a9b5d" stroke="#185632" stroke-width="4"/>
+    <path d="M29 78C31 54 39 47 50 47S69 54 71 78Z" fill="#3a9b5d" stroke="#185632" stroke-width="4"/>
+    <path d="M38 18Q50 9 62 18" fill="none" stroke="#8bd1a5" stroke-width="3" opacity=".7"/>
+  </symbol>
+  <symbol id="player-yellow" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="86" rx="26" ry="7" fill="#000" opacity=".22"/>
+    <circle cx="50" cy="27" r="15" fill="#edbd35" stroke="#76530d" stroke-width="4"/>
+    <path d="M29 78C31 54 39 47 50 47S69 54 71 78Z" fill="#edbd35" stroke="#76530d" stroke-width="4"/>
+    <path d="M38 18Q50 9 62 18" fill="none" stroke="#ffe48b" stroke-width="3" opacity=".8"/>
+  </symbol>
+
+  <!-- ==================== TREASURES ==================== -->
+  <symbol id="treasure-bag_of_gold" viewBox="0 0 100 100">
+    <path d="M40 19Q50 27 60 19L57 33H43Z" fill="#87602c" stroke="#3f2a17" stroke-width="4"/>
+    <path d="M35 35Q50 29 65 35Q77 49 70 77Q50 88 30 77Q23 49 35 35Z" fill="#c99a48" stroke="#513619" stroke-width="4"/>
+    <circle cx="50" cy="58" r="13" fill="#f2c436" stroke="#6f4d13" stroke-width="3"/>
+    <path d="M50 49V67M43 58H57" stroke="#7a5511" stroke-width="3"/>
+  </symbol>
+
+  <symbol id="treasure-bat" viewBox="0 0 100 100">
+    <path d="M49 43Q43 31 37 23L35 43Q25 30 13 35Q22 44 19 58Q30 54 39 65L50 76L61 65Q70 54 81 58Q78 44 87 35Q75 30 65 43L63 23Q57 31 51 43Z"
+      fill="#3f3b50" stroke="#211d29" stroke-width="3.5" stroke-linejoin="round"/>
+    <circle cx="46" cy="48" r="2" fill="#f8e79f"/><circle cx="54" cy="48" r="2" fill="#f8e79f"/>
+  </symbol>
+
+  <symbol id="treasure-book" viewBox="0 0 100 100">
+    <path d="M20 25Q34 20 48 28V79Q34 72 20 76Z" fill="#7b442d" stroke="#40251a" stroke-width="4"/>
+    <path d="M80 25Q66 20 52 28V79Q66 72 80 76Z" fill="#914f32" stroke="#40251a" stroke-width="4"/>
+    <path d="M50 27V79" stroke="#e8c77e" stroke-width="3"/>
+    <rect x="43" y="21" width="14" height="12" rx="2" fill="#d6a631" stroke="#63460e" stroke-width="3"/>
+  </symbol>
+
+  <symbol id="treasure-dragon" viewBox="0 0 100 100">
+    <path d="M26 69Q20 53 33 42Q45 31 59 35Q73 39 78 53Q82 67 70 76Q56 85 42 76L31 83L34 71Z"
+      fill="#49a45d" stroke="#174c28" stroke-width="4"/>
+    <path d="M55 35L66 19L69 37M36 49L19 43L31 59M70 56L87 51L77 68"
+      fill="#49a45d" stroke="#174c28" stroke-width="4" stroke-linejoin="round"/>
+    <circle cx="62" cy="46" r="3" fill="#fff"/><circle cx="63" cy="46" r="1.4" fill="#111"/>
+  </symbol>
+
+  <symbol id="treasure-ghost_in_bottle" viewBox="0 0 100 100">
+    <rect x="40" y="11" width="20" height="10" rx="3" fill="#865a2f" stroke="#452b15" stroke-width="3"/>
+    <path d="M38 22H62V31L68 39V79Q68 86 60 86H40Q32 86 32 79V39L38 31Z"
+      fill="#d4eef4" fill-opacity=".72" stroke="#3d6973" stroke-width="3.5"/>
+    <path d="M40 65Q39 48 50 43Q61 48 60 65Q59 75 54 73Q53 68 50 72Q47 68 46 73Q41 75 40 65Z"
+      fill="#fff" stroke="#6a6a75" stroke-width="2.5"/>
+    <circle cx="46" cy="56" r="2" fill="#222"/><circle cx="54" cy="56" r="2" fill="#222"/>
+  </symbol>
+
+  <symbol id="treasure-ghost" viewBox="0 0 100 100">
+    <path d="M31 76V44Q31 23 50 23Q69 23 69 44V76Q63 70 58 77Q54 70 50 77Q46 70 42 77Q37 70 31 76Z"
+      fill="#f7f7f0" stroke="#5c5c65" stroke-width="4"/>
+    <circle cx="43" cy="47" r="3" fill="#24242a"/><circle cx="57" cy="47" r="3" fill="#24242a"/>
+    <path d="M44 60Q50 66 56 60" fill="none" stroke="#555" stroke-width="3"/>
+  </symbol>
+
+  <symbol id="treasure-crown" viewBox="0 0 100 100">
+    <path d="M20 70L25 33L40 51L50 24L60 51L75 33L80 70Z" fill="#e9ba2f" stroke="#6f5012" stroke-width="4"/>
+    <rect x="19" y="68" width="62" height="12" rx="3" fill="#d59e20" stroke="#6f5012" stroke-width="3"/>
+    <circle cx="25" cy="33" r="4" fill="#b94343"/><circle cx="50" cy="24" r="4" fill="#4574c7"/><circle cx="75" cy="33" r="4" fill="#43985c"/>
+  </symbol>
+
+  <symbol id="treasure-candelabra" viewBox="0 0 100 100">
+    <path d="M50 18Q58 28 50 38Q42 28 50 18ZM31 28Q38 37 31 46Q24 37 31 28ZM69 28Q76 37 69 46Q62 37 69 28Z"
+      fill="#f2a53b" stroke="#7b4b14" stroke-width="2.5"/>
+    <path d="M50 40V77M31 48V60Q31 66 38 66H50M69 48V60Q69 66 62 66H50"
+      fill="none" stroke="#b98520" stroke-width="6" stroke-linecap="round"/>
+    <ellipse cx="50" cy="83" rx="22" ry="6" fill="#d9a326" stroke="#76500d" stroke-width="3"/>
+  </symbol>
+
+  <symbol id="treasure-ring" viewBox="0 0 100 100">
+    <circle cx="50" cy="58" r="22" fill="none" stroke="#d7a820" stroke-width="10"/>
+    <circle cx="50" cy="58" r="22" fill="none" stroke="#68480d" stroke-width="2.5"/>
+    <path d="M42 30L50 15L58 30L50 38Z" fill="#4ca4ca" stroke="#31566c" stroke-width="3"/>
+  </symbol>
+
+  <symbol id="treasure-helmet" viewBox="0 0 100 100">
+    <path d="M25 68V57Q25 29 50 29Q75 29 75 57V68Z" fill="#929ba3" stroke="#41474d" stroke-width="4"/>
+    <path d="M39 70V55Q39 48 50 48Q61 48 61 55V70" fill="#ece9dd" stroke="#41474d" stroke-width="3"/>
+    <path d="M50 15L59 30H41Z" fill="#d3a02b" stroke="#694b0f" stroke-width="3"/>
+  </symbol>
+
+  <symbol id="treasure-jewel" viewBox="0 0 100 100">
+    <path d="M30 29H70L82 43L50 82L18 43Z" fill="#42b9d5" stroke="#275e69" stroke-width="4"/>
+    <path d="M18 43H82M30 29L40 43L50 29L60 43L70 29M40 43L50 82L60 43"
+      fill="none" stroke="#dffaff" stroke-width="2.4" opacity=".85"/>
+  </symbol>
+
+  <symbol id="treasure-princess" viewBox="0 0 100 100">
+    <circle cx="50" cy="31" r="14" fill="#f0c8a8" stroke="#674330" stroke-width="3.5"/>
+    <path d="M34 84Q36 57 50 57Q64 57 66 84Z" fill="#c865a2" stroke="#653453" stroke-width="4"/>
+    <path d="M39 20L50 11L61 20" fill="none" stroke="#d5a72d" stroke-width="4"/>
+    <circle cx="44" cy="31" r="2" fill="#222"/><circle cx="56" cy="31" r="2" fill="#222"/>
+  </symbol>
+
+  <symbol id="treasure-lizard" viewBox="0 0 100 100">
+    <path d="M23 58Q33 43 48 48Q59 51 65 44Q71 38 82 41Q74 49 73 57Q73 67 82 74Q68 74 59 66Q48 72 38 67Q30 64 23 58Z"
+      fill="#78bd63" stroke="#315b2b" stroke-width="3.5"/>
+    <path d="M35 47L29 36M43 47L42 34M59 67L64 80M49 69L47 82"
+      stroke="#315b2b" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="64" cy="47" r="2" fill="#111"/>
+  </symbol>
+
+  <symbol id="treasure-moth" viewBox="0 0 100 100">
+    <path d="M50 26L56 43L50 74L44 43Z" fill="#7b6245" stroke="#413224" stroke-width="3"/>
+    <path d="M49 44Q26 23 17 50Q27 54 40 64Z" fill="#d7c49d" stroke="#6b5a3c" stroke-width="3.5"/>
+    <path d="M51 44Q74 23 83 50Q73 54 60 64Z" fill="#d7c49d" stroke="#6b5a3c" stroke-width="3.5"/>
+    <path d="M46 27L40 17M54 27L60 17" stroke="#4a3927" stroke-width="2.5"/>
+  </symbol>
+
+  <symbol id="treasure-owl" viewBox="0 0 100 100">
+    <path d="M30 78V43Q30 24 50 24Q70 24 70 43V78Z" fill="#8f6b42" stroke="#4f3924" stroke-width="4"/>
+    <circle cx="42" cy="45" r="10" fill="#f6f1df" stroke="#4f3924" stroke-width="3"/>
+    <circle cx="58" cy="45" r="10" fill="#f6f1df" stroke="#4f3924" stroke-width="3"/>
+    <circle cx="42" cy="45" r="3" fill="#222"/><circle cx="58" cy="45" r="3" fill="#222"/>
+    <path d="M50 51L44 59H56Z" fill="#dca531" stroke="#70500f" stroke-width="2"/>
+  </symbol>
+
+  <symbol id="treasure-rat" viewBox="0 0 100 100">
+    <ellipse cx="45" cy="58" rx="24" ry="17" fill="#96989a" stroke="#4b4d4f" stroke-width="3.5"/>
+    <circle cx="67" cy="50" r="10" fill="#96989a" stroke="#4b4d4f" stroke-width="3.5"/>
+    <circle cx="63" cy="40" r="6" fill="#b7a3a8" stroke="#4b4d4f" stroke-width="2.5"/>
+    <circle cx="74" cy="41" r="6" fill="#b7a3a8" stroke="#4b4d4f" stroke-width="2.5"/>
+    <circle cx="71" cy="50" r="2" fill="#111"/>
+    <path d="M21 61Q8 70 13 84" fill="none" stroke="#b8788f" stroke-width="3.5"/>
+  </symbol>
+
+  <symbol id="treasure-scarab" viewBox="0 0 100 100">
+    <ellipse cx="50" cy="56" rx="18" ry="25" fill="#168c95" stroke="#225158" stroke-width="3.5"/>
+    <path d="M50 31V80M32 56H68" stroke="#d8f4ee" stroke-width="2" opacity=".7"/>
+    <path d="M33 44L20 35M32 53L15 51M33 65L20 74M67 44L80 35M68 53L85 51M67 65L80 74"
+      stroke="#315a59" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M43 30Q50 15 57 30" fill="#168c95" stroke="#225158" stroke-width="3"/>
+  </symbol>
+
+  <symbol id="treasure-keys" viewBox="0 0 100 100">
+    <circle cx="34" cy="43" r="12" fill="none" stroke="#d3a72a" stroke-width="8"/>
+    <path d="M46 43H77V50H70V57H62V50H54V57H46Z" fill="#d3a72a" stroke="#684b0f" stroke-width="2.5"/>
+    <circle cx="55" cy="69" r="10" fill="none" stroke="#d3a72a" stroke-width="7"/>
+    <path d="M65 69H84V75H78V81H71V75H65Z" fill="#d3a72a" stroke="#684b0f" stroke-width="2.3"/>
+  </symbol>
+
+  <symbol id="treasure-skull" viewBox="0 0 100 100">
+    <path d="M50 18Q73 18 73 43Q73 58 62 65V79H38V65Q27 58 27 43Q27 18 50 18Z"
+      fill="#efebdc" stroke="#5d594d" stroke-width="4"/>
+    <circle cx="42" cy="43" r="7" fill="#282828"/><circle cx="58" cy="43" r="7" fill="#282828"/>
+    <path d="M50 49L45 58H55Z" fill="#282828"/>
+    <path d="M40 67H60M45 67V78M50 67V78M55 67V78" stroke="#5d594d" stroke-width="3"/>
+  </symbol>
+
+  <symbol id="treasure-sorceress" viewBox="0 0 100 100">
+    <circle cx="50" cy="35" r="12" fill="#edc7aa" stroke="#674330" stroke-width="3"/>
+    <path d="M27 85Q30 56 50 56Q70 56 73 85Z" fill="#6846a4" stroke="#3e2867" stroke-width="4"/>
+    <path d="M34 27L50 10L67 27Z" fill="#42306f" stroke="#271b49" stroke-width="3"/>
+    <path d="M70 66Q82 59 86 44" fill="none" stroke="#6d5022" stroke-width="4"/>
+    <circle cx="86" cy="43" r="4" fill="#e5b43e"/>
+  </symbol>
+
+  <symbol id="treasure-spider" viewBox="0 0 100 100">
+    <circle cx="50" cy="57" r="14" fill="#29252b"/><circle cx="50" cy="39" r="10" fill="#29252b"/>
+    <path d="M40 49L25 38M40 55L19 51M40 61L23 69M43 67L30 82M60 49L75 38M60 55L81 51M60 61L77 69M57 67L70 82"
+      stroke="#29252b" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="46" cy="37" r="2" fill="#eee"/><circle cx="54" cy="37" r="2" fill="#eee"/>
+  </symbol>
+
+  <symbol id="treasure-sword" viewBox="0 0 100 100">
+    <path d="M58 15L70 27L49 48L55 54L34 75L25 66L46 45L40 39Z"
+      fill="#cfd5da" stroke="#555d62" stroke-width="3"/>
+    <path d="M22 68L44 79" stroke="#d1a42a" stroke-width="7" stroke-linecap="round"/>
+    <path d="M30 77L19 87L27 95L38 84Z" fill="#71472e" stroke="#43291a" stroke-width="3"/>
+  </symbol>
+
+  <symbol id="treasure-treasure_chest" viewBox="0 0 100 100">
+    <path d="M20 45Q20 25 50 25Q80 25 80 45V51H20Z" fill="#7b4a2d" stroke="#432918" stroke-width="4"/>
+    <rect x="20" y="50" width="60" height="29" rx="4" fill="#925a35" stroke="#432918" stroke-width="4"/>
+    <path d="M20 52H80M31 27V78M69 27V78" stroke="#c7952f" stroke-width="4" opacity=".8"/>
+    <rect x="44" y="45" width="12" height="18" rx="2" fill="#d2a12a" stroke="#694c11" stroke-width="3"/>
+  </symbol>
+
+  <symbol id="treasure-treasure_map" viewBox="0 0 100 100">
+    <path d="M23 21L43 27L60 21L78 29V80L58 74L42 80L23 73Z"
+      fill="#ebdfbb" stroke="#796642" stroke-width="3.5"/>
+    <path d="M43 27V80M60 21V74" stroke="#ad9869" stroke-width="2.5"/>
+    <path d="M32 43Q48 31 61 43Q68 49 69 58" fill="none" stroke="#715d3b" stroke-width="2.5" stroke-dasharray="4 3"/>
+    <path d="M65 64L77 76M77 64L65 76" stroke="#b84242" stroke-width="4"/>
+  </symbol>
+
+</defs>
+</svg>
+
+<div class="panel">
+<h2>1. 重做后的道路</h2>
+<div class="grid">
+  <div class="asset"><svg class="tile"><use href="#tile-straight"/></svg><code>tile-straight</code><button onclick="downloadSymbol('tile-straight')">导出 SVG</button></div>
+  <div class="asset"><svg class="tile"><use href="#tile-corner"/></svg><code>tile-corner</code><button onclick="downloadSymbol('tile-corner')">导出 SVG</button></div>
+  <div class="asset"><svg class="tile"><use href="#tile-tee"/></svg><code>tile-tee</code><button onclick="downloadSymbol('tile-tee')">导出 SVG</button></div>
+  <div class="asset"><svg class="tile" style="transform:rotate(90deg)"><use href="#tile-corner"/></svg><code>corner + 90°</code></div>
+  <div class="asset"><svg class="tile" style="transform:rotate(180deg)"><use href="#tile-tee"/></svg><code>tee + 180°</code></div>
+  <div class="asset"><svg class="tile" style="transform:rotate(90deg)"><use href="#tile-straight"/></svg><code>straight + 90°</code></div>
+</div>
+</div>
+
+<div class="panel">
+<h2>2. 拼接检查</h2>
+<p>这部分故意不留 gap，用来检查不同 Tile 的道路是否能无缝接上。开口宽度全部严格一致。</p>
+<div class="board">
+  <div class="cell"><svg class="base"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-straight"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(180deg)"><use href="#tile-tee"/></svg><svg class="overlay"><use href="#treasure-crown"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(180deg)"><use href="#tile-tee"/></svg><svg class="overlay"><use href="#treasure-dragon"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-straight"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-corner"/></svg></div>
+
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-tee"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-straight"/></svg><svg class="overlay"><use href="#treasure-owl"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(270deg)"><use href="#tile-tee"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(270deg)"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-straight"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(270deg)"><use href="#tile-tee"/></svg></div>
+
+  <div class="cell"><svg class="base"><use href="#tile-tee"/></svg><svg class="overlay"><use href="#treasure-book"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-straight"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(180deg)"><use href="#tile-tee"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-straight"/></svg><svg class="overlay"><use href="#treasure-skull"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(180deg)"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(270deg)"><use href="#tile-tee"/></svg></div>
+
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-straight"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-tee"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(270deg)"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-straight"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(180deg)"><use href="#tile-tee"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-straight"/></svg></div>
+
+  <div class="cell"><svg class="base" style="transform:rotate(180deg)"><use href="#tile-tee"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-straight"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(270deg)"><use href="#tile-tee"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-straight"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-tee"/></svg></div>
+
+  <div class="cell"><svg class="base"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-straight"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(180deg)"><use href="#tile-tee"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-straight"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(270deg)"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-tee"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-straight"/></svg></div>
+
+  <div class="cell"><svg class="base" style="transform:rotate(270deg)"><use href="#tile-corner"/></svg><svg class="pawn"><use href="#player-green"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-straight"/></svg></div>
+  <div class="cell"><svg class="base"><use href="#tile-tee"/></svg><svg class="overlay"><use href="#treasure-keys"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-corner"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(180deg)"><use href="#tile-tee"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(90deg)"><use href="#tile-straight"/></svg></div>
+  <div class="cell"><svg class="base" style="transform:rotate(180deg)"><use href="#tile-corner"/></svg><svg class="pawn"><use href="#player-red"/></svg></div>
+</div>
+</div>
+
+<div class="panel">
+<h2>3. 24 个宝物</h2>
+<div class="grid" id="treasures"></div>
+</div>
+
+<div class="panel">
+<h2>4. 角色</h2>
+<div class="grid" id="players"></div>
+</div>
+
+<div class="panel">
+<h2>5. 代码使用</h2>
+<div class="note">&lt;svg viewBox="0 0 100 100"&gt;
+  &lt;use href="#tile-tee"/&gt;
+&lt;/svg&gt;
+
+旋转：
+style="transform:rotate(90deg)"
+
+叠加宝物：
+&lt;svg viewBox="0 0 100 100"&gt;
+  &lt;use href="#treasure-dragon"/&gt;
+&lt;/svg&gt;</div>
+</div>
+</div>
+
+<script>
+const treasures = [
+"bag_of_gold","bat","book","dragon","ghost_in_bottle","ghost",
+"crown","candelabra","ring","helmet","jewel","princess",
+"lizard","moth","owl","rat","scarab","keys","skull","sorceress",
+"spider","sword","treasure_chest","treasure_map"
+];
+const players=["red","blue","green","yellow"];
+
+function fillList(containerId, items, prefix, cls){
+  const box=document.getElementById(containerId);
+  items.forEach(name=>{
+    const id=prefix+name;
+    const el=document.createElement("div");
+    el.className="asset";
+    el.innerHTML=`<svg class="${cls}" viewBox="0 0 100 100"><use href="#${id}"></use></svg>
+                  <code>${id}</code>
+                  <button onclick="downloadSymbol('${id}')">导出 SVG</button>`;
+    box.appendChild(el);
+  });
+}
+fillList("treasures",treasures,"treasure-","icon");
+fillList("players",players,"player-","player");
+
+function downloadSymbol(id){
+  const symbol=document.getElementById(id);
+  if(!symbol){alert("symbol not found: "+id);return;}
+
+  // Standalone SVG: copy all defs so gradients/patterns/filters referenced by the symbol keep working.
+  const rootDefs=document.querySelector("body > .wrap + svg defs") || document.querySelector("svg[aria-hidden='true'] defs");
+  const svg=document.createElementNS("http://www.w3.org/2000/svg","svg");
+  svg.setAttribute("xmlns","http://www.w3.org/2000/svg");
+  svg.setAttribute("viewBox",symbol.getAttribute("viewBox") || "0 0 100 100");
+
+  const defs=document.createElementNS("http://www.w3.org/2000/svg","defs");
+  if(rootDefs){
+    [...rootDefs.children].forEach(node=>{
+      if(node.id!==id) defs.appendChild(node.cloneNode(true));
+    });
+  }
+  svg.appendChild(defs);
+
+  [...symbol.childNodes].forEach(n=>svg.appendChild(n.cloneNode(true)));
+
+  const text=new XMLSerializer().serializeToString(svg);
+  const blob=new Blob([text],{type:"image/svg+xml;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url;
+  a.download=id+".svg";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),500);
+}
+</script>
+</body>
+</html>

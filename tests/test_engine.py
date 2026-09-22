@@ -143,19 +143,19 @@ def test_move_collects_target_then_needs_home() -> None:
     game = make_game(2)
     player = game.players[0]
     player.pos = (0, 0)
-    player.treasures = ["Mouse", "Cat"]
+    player.treasures = ["Rat", "Owl"]
     player.collected = 0
     # 放一个可以一步走到的老鼠
     game.grid = [
         [Tile("straight") for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)
     ]
-    game.grid[1][0].treasure = "Mouse"
-    game.grid[2][0].treasure = "Cat"
+    game.grid[1][0].treasure = "Rat"
+    game.grid[2][0].treasure = "Owl"
     game.phase = PHASE_MOVE
 
     result = game.move("u1", 1, 0)
-    assert [t for _uid, t in result.collected] == ["Mouse"]
-    assert player.collected == 1 and player.target == "Cat"
+    assert [t for _uid, t in result.collected] == ["Rat"]
+    assert player.collected == 1 and player.target == "Owl"
 
     game.turn_index = 0  # 测试里强制轮回自己
     game.phase = PHASE_MOVE

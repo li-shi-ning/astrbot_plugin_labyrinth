@@ -270,7 +270,7 @@ def _draw_treasure(image, draw, treasure: str) -> None:
 
             with Image.open(path) as icon:
                 icon = icon.convert("RGBA")
-                size = CELL * 5 // 8
+                size = CELL // 2
                 icon = icon.resize((size, size), Image.LANCZOS)
                 image.paste(icon, ((CELL - size) // 2, (CELL - size) // 2), icon)
                 return

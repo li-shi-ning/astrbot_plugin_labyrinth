@@ -1,40 +1,33 @@
-# 素材目录约定
+# 素材目录
 
-棋盘图片由 `src/board_image.py` 用 Pillow 本地合成，**缺素材时会自动用几何图形兜底**，
-所以这里可以先空着，随时补图即可。
-
-## tiles/ —— 牌型基础图
-
-放 3 张**牌型底图**（通道用浅色、墙用深色），朝向统一为 `rotation=0`，
-代码会按牌的实际朝向自动旋转：
-
-| 文件 | 朝向（rotation=0） | 说明 |
-| --- | --- | --- |
-| `straight.png` | 上、下 | 直路 |
-| `corner.png` | 上、右 | 拐角 |
-| `t-shape.png` | 上、右、下 | 三通 |
-
-建议尺寸 **正方形**，例如 `256×256`（会被缩放到 64×64 渲染）。
-四边出口要画到图片边缘，拼接后通道才能对上。
-
-## treasures/ —— 宝藏图标
-
-24 张，文件名用宝藏 id（也就是 `src/tiles.py` 里的 key）：
+本目录的 PNG **已经内置**（由 `scripts/build_assets.js` 从 SVG 素材包栅格化而来），
+`src/board_image.py` 直接用 Pillow 合成棋盘，运行时不访问外网。
 
 ```
-KnightHelmet.png  Candles.png  Dagger.png  Diamond.png  Treasure.png  Ring.png
-HolyGrail.png     Keys.png     Crown.png   Potion.png   Coins.png     Book.png
-Mouse.png  Bomb.png  Cat.png  Owl.png  Lizard.png  Bug.png
-Pony.png   Bat.png   Ghost.png  Mermaid.png  Dinosaur.png  Cannon.png
+tiles/      straight.png  corner.png  t-shape.png      3 种牌型底图
+treasures/  Helmet.png ... Ghost.png                   24 个宝藏图标
+pawns/      yellow.png red.png blue.png green.png      4 个棋子
 ```
 
-会以约 5/8 格子的尺寸居中贴在牌上，建议正方形、背景透明（PNG）。
+## 牌型底图的朝向约定
 
-## pawns/ —— 棋子
+三张底图统一为 **rotation=0** 的朝向，代码按牌的实际朝向顺时针旋转后拼接：
 
-`yellow.png`、`red.png`、`blue.png`、`green.png`，建议正方形、透明背景。
+| 文件 | rotation=0 的开口 |
+| --- | --- |
+| `straight.png` | 上、下 |
+| `corner.png` | 上、右 |
+| `t-shape.png` | 上、右、下 |
 
-## font.ttf（可选）
+底图只画通道与石墙、**不含宝藏**；宝藏由 `treasures/<id>.png` 以半格大小居中叠加。
 
-放一个中文字体即可让棋盘里的中文更稳定；不放时自动查找
-`/AstrBot/data/font.ttf`（AstrBot 自带）或系统中文字体。
+## 重新生成 / 替换素材
+
+```bash
+npm i @resvg/resvg-js
+node scripts/build_assets.js scripts/labyrinth_svg_asset_pack_v2_fixed.html assets
+```
+
+`scripts/labyrinth_svg_asset_pack_v2_fixed.html` 是素材包源文件（含 `<defs>` + `<symbol>`）。
+想换成自己画的素材时：**按上面的朝向约定**导出三张牌型底图，其余 PNG 直接用同名文件覆盖即可
+（缺文件时 `src/board_image.py` 会自动退回几何图形，不会报错）。

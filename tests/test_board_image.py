@@ -49,7 +49,7 @@ def test_falls_back_to_procedural_when_asset_missing(tmp_path, monkeypatch) -> N
 def test_treasure_icon_and_pawn_assets(tmp_path, monkeypatch) -> None:
     treasure_dir = tmp_path / "treasures"
     treasure_dir.mkdir()
-    Image.new("RGBA", (64, 64), (0, 255, 0, 255)).save(treasure_dir / "Mouse.png")
+    Image.new("RGBA", (64, 64), (0, 255, 0, 255)).save(treasure_dir / "Rat.png")
     pawn_dir = tmp_path / "pawns"
     pawn_dir.mkdir()
     Image.new("RGBA", (64, 64), (255, 0, 255, 255)).save(pawn_dir / "yellow.png")
@@ -64,5 +64,5 @@ def test_treasure_icon_and_pawn_assets(tmp_path, monkeypatch) -> None:
     out = board_image.render_board(game, tmp_path / "board.png")
     assert out is not None
 
-    tile = board_image._render_tile(Tile("corner", 0, "Mouse"))
+    tile = board_image._render_tile(Tile("corner", 0, "Rat"))
     assert tile.getpixel((32, 32))[1] > 200  # 中央被绿色宝藏图标覆盖

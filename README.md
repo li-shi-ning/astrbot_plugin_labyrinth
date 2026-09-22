@@ -34,15 +34,23 @@
 
 ## 棋盘图片与素材
 
-棋盘由 `src/board_image.py` 用 Pillow 本地渲染，**不访问外网**。
-素材放在 `assets/`，缺失时自动用几何图形兜底：
+棋盘由 `src/board_image.py` 用 Pillow **本地合成**，再用 QQ 富媒体消息（`msg_type=7`）发送，
+运行时不访问外网。素材已内置在 `assets/`：
 
 | 路径 | 说明 |
 | --- | --- |
-| `assets/tiles/straight.png`、`corner.png`、`t-shape.png` | 牌型基础图（rotation=0 的朝向，代码负责旋转） |
-| `assets/treasures/<TreasureId>.png` | 宝藏图标，画在牌中央（如 `Mouse.png`、`Crown.png`） |
-| `assets/pawns/<color>.png` | 棋子（`yellow` / `red` / `blue` / `green`） |
-| `assets/font.ttf` | 可选，中文字体；缺省时自动查找 AstrBot 自带字体 |
+| `assets/tiles/{straight,corner,t-shape}.png` | 3 种牌型底图，统一 `rotation=0` 朝向（直路=上下、拐角=上右、三通=上右下） |
+| `assets/treasures/<TreasureId>.png` | 24 个宝藏图标，居中叠加在牌上（半格大小） |
+| `assets/pawns/{yellow,red,blue,green}.png` | 4 个棋子 |
+
+素材由 SVG 素材包栅格化生成，可重新生成或替换：
+
+```bash
+npm i @resvg/resvg-js
+node scripts/build_assets.js scripts/labyrinth_svg_asset_pack_v2_fixed.html assets
+```
+
+缺素材时三层都会自动兜底（牌型→几何画线、宝藏→圆圈写字、棋子→彩色圆），不会报错。
 
 ## 配置 `_conf_schema.json`
 
