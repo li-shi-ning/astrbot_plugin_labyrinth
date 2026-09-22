@@ -39,7 +39,7 @@ def _playing_buttons(game: Game, requester_id: str) -> list[Button]:
         buttons.append(
             Button(
                 f"lab_target_{index}",
-                f"{game.label_of(player)}·目标",
+                f"🎯 {game.label_of(player)}·目标",
                 target_payload(player, game),
                 only_for=player.user_id,
             )

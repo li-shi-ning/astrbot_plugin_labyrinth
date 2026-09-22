@@ -91,9 +91,45 @@ TREASURE_NAMES = {
 }
 
 
+# 每个宝藏的 emoji（用于对玩家展示）
+TREASURE_EMOJI = {
+    "Helmet": "🪖",
+    "Candelabra": "🕯️",
+    "Sword": "⚔️",
+    "Jewel": "💎",
+    "TreasureChest": "🧰",
+    "Ring": "💍",
+    "TreasureMap": "🗺️",
+    "Keys": "🔑",
+    "Crown": "👑",
+    "GhostInBottle": "⚗️",
+    "BagOfGold": "💰",
+    "Book": "📖",
+    "Rat": "🐀",
+    "Bat": "🦇",
+    "Owl": "🦉",
+    "Lizard": "🦎",
+    "Spider": "🕷️",
+    "Moth": "🦋",
+    "Scarab": "🪲",
+    "Skull": "💀",
+    "Dragon": "🐉",
+    "Princess": "👸",
+    "Sorceress": "🧙",
+    "Ghost": "👻",
+}
+
+
 def treasure_name(treasure: str) -> str:
     """宝藏的中文名（未知 id 原样返回）。"""
     return TREASURE_NAMES.get(treasure, treasure)
+
+
+def treasure_label(treasure: str) -> str:
+    """给玩家看的宝藏文字：``emoji + 中文名``，如 ``🐉 龙``。"""
+    emoji = TREASURE_EMOJI.get(treasure)
+    name = treasure_name(treasure)
+    return f"{emoji} {name}" if emoji else name
 
 
 # 16 张固定牌：(行, 列) -> (牌型, rotation, 宝藏, 起始角颜色)

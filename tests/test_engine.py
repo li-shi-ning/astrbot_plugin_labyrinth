@@ -232,3 +232,19 @@ def test_board_image_renders(tmp_path) -> None:
     with Image.open(out) as image:
         assert image.format == "PNG"
         assert image.width > 7 * 40 and image.height > 7 * 40
+
+
+def test_treasure_labels_have_emoji() -> None:
+    """24 个宝藏都要有 emoji + 中文名，且 emoji 不重复。"""
+    from src.tiles import (
+        TREASURE_EMOJI,
+        TREASURES,
+        treasure_label,
+        treasure_name,
+    )
+
+    assert sorted(TREASURE_EMOJI) == sorted(TREASURES)
+    assert len(set(TREASURE_EMOJI.values())) == len(TREASURES)
+    for treasure in TREASURES:
+        label = treasure_label(treasure)
+        assert label == f"{TREASURE_EMOJI[treasure]} {treasure_name(treasure)}"

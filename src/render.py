@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from .engine import PHASE_ENDED, PHASE_PUSH, Game, Player
-from .tiles import COLOR_NAMES, treasure_name
+from .tiles import COLOR_NAMES, treasure_label
 
 ROTATION_CN = {0: "上右", 1: "右下", 2: "下左", 3: "左上"}
 
@@ -24,7 +24,7 @@ def render_table(game: Game) -> str:
     lines = [f"🌀 疯狂迷宫 · 第 {game.turn_index + 1} 位行动", ""]
     for index, player in enumerate(game.players):
         label = chr(ord("A") + index)
-        found = "、".join(treasure_name(t) for t in player.found) or "无"
+        found = "、".join(treasure_label(t) for t in player.found) or "无"
         lines.append(
             f"{label} {player.name}（{COLOR_NAMES.get(player.color, '?')}）"
             f" 已收 {player.collected}/{len(player.treasures)}：{found}"
@@ -88,7 +88,7 @@ def render_move(result) -> str:
 
 
 def _collected_text(collected: list[tuple[str, str]]) -> str:
-    return "\n".join(f"🎁 找到【{treasure_name(t)}】" for _uid, t in collected)
+    return "\n".join(f"🎁 找到【{treasure_label(t)}】" for _uid, t in collected)
 
 
 def _win_text(user_id: str) -> str:
@@ -98,16 +98,14 @@ def _win_text(user_id: str) -> str:
 def target_payload(player: Player, game: Game) -> str:
     """私密按钮 data：只看得到自己的当前目标。"""
     if player.target is None:
-        return f"{game.label_of(player)}目标：全部集齐，回起点（看完请勿发送）"
-    return (
-        f"{game.label_of(player)}目标：{treasure_name(player.target)}（看完请勿发送）"
-    )
+        return f"🎯 {game.label_of(player)} 目标：已全部集齐，回起点（看完请勿发送）"
+    return f"🎯 {game.label_of(player)} 目标：{treasure_label(player.target)}（看完请勿发送）"
 
 
 def target_text(player: Player, game: Game) -> str:
     if player.target is None:
         return "🎯 你已经集齐全部宝藏，现在回到起点即可获胜。"
-    return f"🎯 当前目标：【{treasure_name(player.target)}】"
+    return f"🎯 {game.label_of(player)} 当前目标：【{treasure_label(player.target)}】"
 
 
 def render_help() -> str:

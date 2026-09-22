@@ -132,3 +132,18 @@ def test_dissolve_requires_host() -> None:
         service.dispatch("g1", "u2", "乙", "解散")
     assert "解散" in flat(service.dispatch("g1", "u1", "甲", "解散"))
     assert service.game("g1") is None
+
+
+def test_target_payload_uses_emoji() -> None:
+    """私密目标提示是 emoji + 中文名。"""
+    service = make_service()
+    game = service.game("g1")
+    assert game is not None
+    game.start("u1")
+    player = game.players[0]
+    payload = target_payload(player, game)
+    assert payload.startswith(f"🎯 {game.label_of(player)} 目标：")
+    assert "（看完请勿发送）" in payload
+    from src.tiles import TREASURE_EMOJI
+
+    assert TREASURE_EMOJI[player.treasures[0]] in payload
