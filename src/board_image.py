@@ -19,6 +19,8 @@ from pathlib import Path
 from .engine import PUSH_LINES, Game, Player, Tile
 from .tiles import BOARD_SIZE, COLUMN_LETTERS, DIRS, treasure_name
 
+DIRECTION_CN = {0: "上", 1: "右", 2: "下", 3: "左"}
+
 ASSET_DIR = Path(__file__).resolve().parent.parent / "assets"
 TILE_DIR = ASSET_DIR / "tiles"
 TREASURE_DIR = ASSET_DIR / "treasures"
@@ -26,7 +28,10 @@ PAWN_DIR = ASSET_DIR / "pawns"
 
 CELL = 64
 MARGIN = 30
-SIDE_PANEL = 104
+SIDE_PANEL = 208  # 棋盘右侧「手牌卡 + 玩家进度」区域宽度
+SPARE_SIZE = 120  # 手牌放大展示尺寸
+PLAYER_ROW_H = 38  # 右侧玩家进度每行高度
+PANEL_BG = (255, 255, 255)
 
 WALL = (214, 196, 165)
 FLOOR = (252, 248, 238)
@@ -155,36 +160,67 @@ def render_board(
         x0, y0, _x1, _y1 = cell_box(*player.pos)
         _draw_pawn(image, draw, f_label, player, index, x0, y0)
 
-    # 右侧：手牌 + 玩家进度
-    panel_x = origin_x + board_px + 16
-    draw.text((panel_x, origin_y), "手牌", font=f_label, fill=FG)
-    if game.spare is not None:
-        image.paste(_render_tile(game.spare), (panel_x, origin_y + 24))
-        draw.rectangle(
-            [panel_x, origin_y + 24, panel_x + CELL - 1, origin_y + 24 + CELL - 1],
-            outline=LINE,
-        )
-        rotation_cn = {0: "上右", 1: "右下", 2: "下左", 3: "左上"}
+    # 右侧：独立的手牌卡 + 玩家进度
+    panel_x0 = origin_x + board_px + 14
+    panel_x1 = width - MARGIN
+    panel_w = panel_x1 - panel_x0
+    draw.rounded_rectangle(
+        [panel_x0, origin_y, panel_x1, origin_y + board_px],
+        radius=12,
+        fill=PANEL_BG,
+        outline=LINE,
+        width=2,
+    )
+
+    def center_text(y: int, text: str, text_font, fill) -> None:
+        cx = (panel_x0 + panel_x1) // 2
         draw.text(
-            (panel_x, origin_y + 30 + CELL),
-            f"朝向 {rotation_cn[game.spare.rotation]}",
-            font=f_tiny,
-            fill=MUTED,
+            (cx - draw.textlength(text, font=text_font) / 2, y),
+            text,
+            font=text_font,
+            fill=fill,
         )
 
-    y = origin_y + 130
+    cursor = origin_y + 14
+    center_text(cursor, "手 牌", f_label, FG)
+    cursor += 28
+
+    if game.spare is not None:
+        spare_image = _render_tile(game.spare, SPARE_SIZE)
+        image.paste(spare_image, (panel_x0 + (panel_w - SPARE_SIZE) // 2, cursor))
+        cursor += SPARE_SIZE + 8
+        rotation_cn = {0: "上右", 1: "右下", 2: "下左", 3: "左上"}
+        center_text(cursor, f"朝向 {rotation_cn[game.spare.rotation]}", f_small, FG)
+        cursor += 22
+        openings = " ".join(DIRECTION_CN[d] for d in sorted(game.spare.openings()))
+        center_text(cursor, f"开口 {openings}", f_tiny, MUTED)
+        cursor += 20
+
+    draw.line([panel_x0 + 16, cursor, panel_x1 - 16, cursor], fill=LINE, width=1)
+    cursor += 10
+    draw.text((panel_x0 + 16, cursor), "上下推 → 选列 b/d/f", font=f_tiny, fill=MUTED)
+    cursor += 18
+    draw.text((panel_x0 + 16, cursor), "左右推 → 选行 2/4/6", font=f_tiny, fill=MUTED)
+    cursor += 20
+
+    draw.line([panel_x0 + 16, cursor, panel_x1 - 16, cursor], fill=LINE, width=1)
+    cursor += 10
+
     for index, player in enumerate(game.players):
-        label = f"{chr(ord('A') + index)} {player.name}"[:9]
+        label = f"{chr(ord('A') + index)} {player.name}"[:10]
+        active = player is current
         draw.text(
-            (panel_x, y), label, font=f_tiny, fill=FG if player is current else MUTED
+            (panel_x0 + 16, cursor),
+            label,
+            font=f_small,
+            fill=FG if active else MUTED,
         )
-        y += 18
-        target = player.target
-        text = f"  已收 {player.collected}/{len(player.treasures)}"
-        if target is None:
-            text += " 回起点"
-        draw.text((panel_x, y), text, font=f_tiny, fill=MUTED)
-        y += 20
+        cursor += 19
+        text = f"　已收 {player.collected}/{len(player.treasures)}"
+        if player.all_collected:
+            text += "　回起点"
+        draw.text((panel_x0 + 16, cursor), text, font=f_tiny, fill=MUTED)
+        cursor += PLAYER_ROW_H - 19
 
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -195,17 +231,17 @@ def render_board(
 # ----------------------------------------------------------------------
 # 单张牌
 # ----------------------------------------------------------------------
-def _render_tile(tile: Tile):
+def _render_tile(tile: Tile, size: int = CELL):
     """渲染一张牌：先取牌型底图，再把宝藏图标贴上去。"""
     from PIL import ImageDraw
 
-    image = _tile_base(tile)
+    image = _tile_base(tile, size)
     if tile.treasure:
-        _draw_treasure(image, ImageDraw.Draw(image), tile.treasure)
+        _draw_treasure(image, ImageDraw.Draw(image), tile.treasure, size)
     return image
 
 
-def _tile_base(tile: Tile):
+def _tile_base(tile: Tile, size: int = CELL):
     """牌型底图（已按 ``tile.rotation`` 顺时针旋转）。
 
     优先用 ``assets/tiles/<kind>.png``（rotation=0 的朝向），
@@ -217,27 +253,27 @@ def _tile_base(tile: Tile):
     if path.is_file():
         try:
             with Image.open(path) as source:
-                base = source.convert("RGBA").resize((CELL, CELL), Image.LANCZOS)
+                base = source.convert("RGBA").resize((size, size), Image.LANCZOS)
         except (OSError, ValueError):
             base = None
         if base is not None:
             if tile.rotation:
                 # Pillow 正角度是逆时针，取负号得到顺时针
                 base = base.rotate(-90 * tile.rotation)
-            canvas = Image.new("RGB", (CELL, CELL), WALL)
+            canvas = Image.new("RGB", (size, size), WALL)
             canvas.paste(base, (0, 0), base)
             return canvas
-    return _draw_base(tile)
+    return _draw_base(tile, size)
 
 
-def _draw_base(tile: Tile):
+def _draw_base(tile: Tile, size: int = CELL):
     """没有素材时按出口程序化画通道。"""
     from PIL import Image, ImageDraw
 
-    image = Image.new("RGB", (CELL, CELL), WALL)
+    image = Image.new("RGB", (size, size), WALL)
     draw = ImageDraw.Draw(image)
-    half = CELL // 2
-    thickness = 16
+    half = size // 2
+    thickness = max(6, size * 16 // CELL)
     for direction in tile.openings():
         dr, dc = DIRS[direction]
         if dr == -1:
@@ -246,11 +282,11 @@ def _draw_base(tile: Tile):
             )
         elif dr == 1:
             draw.rectangle(
-                [half - thickness // 2, half, half + thickness // 2, CELL], fill=FLOOR
+                [half - thickness // 2, half, half + thickness // 2, size], fill=FLOOR
             )
         elif dc == 1:
             draw.rectangle(
-                [half, half - thickness // 2, CELL, half + thickness // 2], fill=FLOOR
+                [half, half - thickness // 2, size, half + thickness // 2], fill=FLOOR
             )
         else:
             draw.rectangle(
@@ -268,7 +304,7 @@ def _draw_base(tile: Tile):
     return image
 
 
-def _draw_treasure(image, draw, treasure: str) -> None:
+def _draw_treasure(image, draw, treasure: str, size: int = CELL) -> None:
     """宝藏图标：有素材就贴图，否则画个圆圈写名字。"""
     path = TREASURE_DIR / f"{treasure}.png"
     if path.is_file():
@@ -277,9 +313,11 @@ def _draw_treasure(image, draw, treasure: str) -> None:
 
             with Image.open(path) as icon:
                 icon = icon.convert("RGBA")
-                size = CELL // 2
-                icon = icon.resize((size, size), Image.LANCZOS)
-                image.paste(icon, ((CELL - size) // 2, (CELL - size) // 2), icon)
+                icon_size = size // 2
+                icon = icon.resize((icon_size, icon_size), Image.LANCZOS)
+                image.paste(
+                    icon, ((size - icon_size) // 2, (size - icon_size) // 2), icon
+                )
                 return
         except (OSError, ValueError):
             pass

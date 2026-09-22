@@ -66,3 +66,51 @@ def test_treasure_icon_and_pawn_assets(tmp_path, monkeypatch) -> None:
 
     tile = board_image._render_tile(Tile("corner", 0, "Rat"))
     assert tile.getpixel((32, 32))[1] > 200  # 中央被绿色宝藏图标覆盖
+
+
+def test_board_has_hand_panel(tmp_path) -> None:
+    """右侧要有独立的手牌卡区域，4 人局内容不溢出。"""
+    import random
+
+    from src import board_image
+    from src.engine import Game
+
+    game = Game("g", rng=random.Random(11))
+    for index, name in enumerate(["四", "默然", "阿丙", "小丁"], start=1):
+        game.add_player(f"u{index}", name)
+    game.start("u1")
+    game.players[0].collected = 5
+
+    out = board_image.render_board(game, tmp_path / "board.png")
+    with Image.open(out) as image:
+        assert (
+            image.width
+            == board_image.MARGIN * 2 + 7 * board_image.CELL + board_image.SIDE_PANEL
+        )
+        # 手牌区确实画了东西（不是纯背景）
+        panel = image.crop(
+            (
+                board_image.MARGIN + 7 * board_image.CELL + 14,
+                board_image.MARGIN,
+                image.width - board_image.MARGIN,
+                board_image.MARGIN + 7 * board_image.CELL,
+            )
+        )
+        colors = panel.convert("RGB").getcolors(20000)
+        assert len(colors) > 30
+    # 面板内容高度不超过棋盘高度
+    content_bottom = (
+        board_image.MARGIN
+        + 14
+        + 28
+        + board_image.SPARE_SIZE
+        + 8
+        + 22
+        + 20
+        + 10
+        + 18
+        + 20
+        + 10
+        + 4 * board_image.PLAYER_ROW_H
+    )
+    assert content_bottom <= board_image.MARGIN + 7 * board_image.CELL
