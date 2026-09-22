@@ -36,19 +36,22 @@ QQOFFICIAL_EVENT_MODULE_PREFIXES = (
 _SEQ_COUNTER = itertools.count(random.randint(1, 5000))
 
 MAX_BUTTONS = 25
-BUTTONS_PER_ROW = 3
-CROWDED_BUTTONS_PER_ROW = 5
+BUTTONS_PER_ROW = 4  # 本插件按「一列一边 / 一行四格」布局
 MAX_ROWS = 5
 
 
 @dataclass(frozen=True)
 class Button:
-    """一个 QQ 官方 inline keyboard 按钮。"""
+    """一个 QQ 官方 inline keyboard 按钮。
+
+    ``new_row`` 为 True 表示这个按钮另起一行（用于固定分组布局）。
+    """
 
     button_id: str
     label: str
     data: str
     only_for: str | None = None
+    new_row: bool = False
 
 
 @dataclass(frozen=True)
@@ -135,20 +138,36 @@ def build_button(button: Button) -> dict[str, Any]:
 
 
 def build_keyboard(buttons: list[Button]) -> dict[str, Any] | None:
-    """把按钮排成 QQ 官方键盘，最多 25 个、5 行。"""
+    """把按钮排成 QQ 官方键盘：每行 4 个、最多 5 行。
+
+    ``Button.new_row`` 可以显式换行（例如「一列一边」的推牌按钮）。
+    """
     if not buttons:
         return None
-    limited = buttons[:MAX_BUTTONS]
-    per_row = (
-        CROWDED_BUTTONS_PER_ROW
-        if len(limited) > MAX_ROWS * BUTTONS_PER_ROW
-        else BUTTONS_PER_ROW
-    )
-    rows = [
-        {"buttons": [build_button(spec) for spec in limited[index : index + per_row]]}
-        for index in range(0, len(limited), per_row)
-    ]
-    return {"content": {"rows": rows[:MAX_ROWS]}}
+
+    rows: list[list[Button]] = []
+    current: list[Button] = []
+    for spec in buttons[:MAX_BUTTONS]:
+        if spec.new_row and current:
+            rows.append(current)
+            current = []
+        if len(current) >= BUTTONS_PER_ROW:
+            rows.append(current)
+            current = []
+        if len(rows) >= MAX_ROWS:
+            break
+        current.append(spec)
+    if current and len(rows) < MAX_ROWS:
+        rows.append(current)
+    rows = rows[:MAX_ROWS]
+    if not rows:
+        return None
+
+    return {
+        "content": {
+            "rows": [{"buttons": [build_button(spec) for spec in row]} for row in rows]
+        }
+    }
 
 
 def build_payload(text: str, buttons: list[Button] | None = None) -> dict[str, Any]:

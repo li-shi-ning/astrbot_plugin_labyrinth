@@ -90,6 +90,7 @@ class LabyrinthPlugin(Star):
             return
 
         action_text = self._strip_prefix(event.message_str)
+        is_admin = self._is_admin(event)
         lock = self.service.lock(context.group_openid)
         async with lock:
             try:
@@ -98,6 +99,7 @@ class LabyrinthPlugin(Star):
                     context.member_openid,
                     context.display_name,
                     action_text,
+                    is_admin=is_admin,
                 )
             except GameError as exc:
                 reply = Reply(text=f"⚠️ {exc}")
@@ -143,6 +145,17 @@ class LabyrinthPlugin(Star):
         except Exception as exc:  # noqa: BLE001 - 渲染失败不应影响出牌
             logger.warning("[Labyrinth] render board failed: %s", exc)
             return None
+
+    @staticmethod
+    def _is_admin(event: AstrMessageEvent) -> bool:
+        """判断发送者是否 AstrBot 管理员（管理员也能解散牌局）。"""
+        checker = getattr(event, "is_admin", None)
+        if callable(checker):
+            try:
+                return bool(checker())
+            except Exception:  # noqa: BLE001 - 不同适配器实现不同
+                return False
+        return bool(checker)
 
     def _guard(self, event: AstrMessageEvent) -> str | None:
         platform_name = (

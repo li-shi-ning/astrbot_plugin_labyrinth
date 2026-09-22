@@ -6,7 +6,7 @@ import asyncio
 import re
 from dataclasses import dataclass
 
-from .engine import MAX_PLAYERS, PUSH_LINES, Game, GameError
+from .engine import MAX_PLAYERS, PHASE_ENDED, Game, GameError
 from .render import (
     render_help,
     render_hint,
@@ -16,7 +16,7 @@ from .render import (
     render_rules,
     render_table,
 )
-from .tiles import BOARD_SIZE
+from .tiles import parse_cell, parse_push_line
 
 ACTION_ALIASES = {
     "创建": "create",
@@ -55,6 +55,12 @@ SIDE_ALIASES = {
     "下": "下",
     "左": "左",
     "右": "右",
+    "↑": "上",
+    "↓": "下",
+    "←": "左",
+    "→": "右",
+    "up": "上",
+    "down": "下",
     "top": "上",
     "bottom": "下",
     "left": "左",
@@ -68,11 +74,15 @@ SIDE_ALIASES = {
 
 @dataclass
 class Reply:
-    """一次指令的结果：播报正文 + 牌桌 + 回合提示。"""
+    """一次指令的结果：播报正文 + 牌桌 + 回合提示。
+
+    ``board`` 是这条回复对应的牌局（对局结束、房间已销毁时仍能画最后一张棋盘）。
+    """
 
     text: str = ""
     table: str = ""
     hint: str = ""
+    board: Game | None = None
 
 
 class GameService:
@@ -88,7 +98,14 @@ class GameService:
     def game(self, session_id: str) -> Game | None:
         return self.games.get(session_id)
 
-    def dispatch(self, session_id: str, user_id: str, name: str, text: str) -> Reply:
+    def dispatch(
+        self,
+        session_id: str,
+        user_id: str,
+        name: str,
+        text: str,
+        is_admin: bool = False,
+    ) -> Reply:
         """解析并执行一条指令。"""
         action, rest = self._parse_action(text)
         if action is None:
@@ -118,7 +135,7 @@ class GameService:
         if action == "leave":
             return self._leave(session_id, user_id, name)
         if action == "dissolve":
-            return self._dissolve(session_id, user_id)
+            return self._dissolve(session_id, user_id, is_admin)
         raise GameError("无法识别的指令，发送「迷宫 帮助」查看用法")
 
     # ------------------------------------------------------------------
@@ -161,18 +178,20 @@ class GameService:
         game = self._require(session_id)
         side, index = self._parse_push(rest)
         result = game.push(user_id, side, index)
-        return self._board_reply(game, render_push(result))
+        reply = self._board_reply(game, render_push(game, result))
+        return self._finish_if_ended(session_id, game, reply)
 
     def _move(self, session_id: str, user_id: str, rest: str) -> Reply:
         game = self._require(session_id)
         row, col = self._parse_cell(rest)
         result = game.move(user_id, row, col)
-        return self._board_reply(game, render_move(result))
+        reply = self._board_reply(game, render_move(game, result))
+        return self._finish_if_ended(session_id, game, reply)
 
     def _stop(self, session_id: str, user_id: str) -> Reply:
         game = self._require(session_id)
         result = game.stay(user_id)
-        return self._board_reply(game, render_move(result))
+        return self._board_reply(game, render_move(game, result))
 
     def _leave(self, session_id: str, user_id: str, name: str) -> Reply:
         game = self._require(session_id)
@@ -182,16 +201,32 @@ class GameService:
             return Reply(text="牌局已随最后一名玩家退出而解散。")
         return self._board_reply(game, f"👋 {name} 退出了牌局")
 
-    def _dissolve(self, session_id: str, user_id: str) -> Reply:
+    def _dissolve(self, session_id: str, user_id: str, is_admin: bool) -> Reply:
         game = self._require(session_id)
-        if game.players and game.players[0].user_id != user_id:
-            raise GameError("只有房主可以解散牌局")
+        if not is_admin and game.players and game.players[0].user_id != user_id:
+            raise GameError("只有房主或管理员可以解散牌局")
         self.games.pop(session_id, None)
         return Reply(text="🧹 牌局已解散。")
 
+    def _finish_if_ended(self, session_id: str, game: Game, reply: Reply) -> Reply:
+        """对局结束时销毁房间（棋盘内容保留在这次回复里）。"""
+        if game.phase == PHASE_ENDED:
+            self.games.pop(session_id, None)
+            reply.text = (
+                f"{reply.text}\n🧹 本局结束，房间已销毁"
+                if reply.text
+                else "🧹 本局结束，房间已销毁"
+            )
+        return reply
+
     # ------------------------------------------------------------------
     def _board_reply(self, game: Game, text: str = "") -> Reply:
-        return Reply(text=text, table=render_table(game), hint=render_hint(game))
+        return Reply(
+            text=text,
+            table=render_table(game),
+            hint=render_hint(game),
+            board=game,
+        )
 
     def _require(self, session_id: str) -> Game:
         game = self.games.get(session_id)
@@ -211,27 +246,35 @@ class GameService:
 
     @staticmethod
     def _parse_push(rest: str) -> tuple[str, int]:
+        """``推 上 b`` / ``推 左 2`` / ``b 上`` 都支持。"""
         parts = [p for p in re.split(r"[\s,，]+", rest.strip()) if p]
-        if len(parts) == 2 and parts[0].isdigit():
-            parts = [parts[1], parts[0]]
         if len(parts) != 2:
-            raise GameError("格式：迷宫 推 上 2（方向 + 2/4/6）")
+            raise GameError(
+                "格式：迷宫 推 上 b（上下选列 a-g）或 迷宫 推 左 2（左右选行 1-7）"
+            )
         side = SIDE_ALIASES.get(parts[0].lower()) or SIDE_ALIASES.get(parts[0])
+        token = parts[1]
+        if side is None:  # 允许先写位置
+            side = SIDE_ALIASES.get(token.lower()) or SIDE_ALIASES.get(token)
+            token = parts[0]
         if side is None:
             raise GameError("方向只能是 上/下/左/右")
-        if not parts[1].isdigit():
-            raise GameError("位置只能是 2、4、6")
-        line = int(parts[1]) - 1
-        if line not in PUSH_LINES:
-            raise GameError("只能推第 2、4、6 行或列")
+        line = parse_push_line(side, token)
+        if line is None:
+            if side in ("上", "下"):
+                raise GameError("上下推只能选第 b/d/f 列")
+            raise GameError("左右推只能选第 2/4/6 行")
         return side, line
 
     @staticmethod
     def _parse_cell(rest: str) -> tuple[int, int]:
-        parts = [p for p in re.split(r"[\s,，\-]+", rest.strip()) if p]
-        if len(parts) != 2 or not all(p.isdigit() for p in parts):
-            raise GameError("格式：迷宫 走 3 4（行 列，都从 1 开始）")
-        row, col = int(parts[0]) - 1, int(parts[1]) - 1
-        if not (0 <= row < BOARD_SIZE and 0 <= col < BOARD_SIZE):
-            raise GameError("坐标要在 1-7 之间")
-        return row, col
+        """``走 c3`` / ``走 C3`` / ``走 3c`` 都支持（列 a-g，行 1-7 从下往上）。"""
+        parts = [p for p in re.split(r"[\s,，]+", rest.strip()) if p]
+        cell = None
+        if len(parts) == 1:
+            cell = parse_cell(parts[0])
+        elif len(parts) == 2:
+            cell = parse_cell(parts[0] + parts[1])
+        if cell is None:
+            raise GameError("格式：迷宫 走 c3（列 a-g 从左到右，行 1-7 从下往上）")
+        return cell

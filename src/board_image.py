@@ -17,7 +17,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from .engine import PUSH_LINES, Game, Player, Tile
-from .tiles import BOARD_SIZE, DIRS, treasure_name
+from .tiles import BOARD_SIZE, COLUMN_LETTERS, DIRS, treasure_name
 
 ASSET_DIR = Path(__file__).resolve().parent.parent / "assets"
 TILE_DIR = ASSET_DIR / "tiles"
@@ -133,14 +133,21 @@ def render_board(
         x0, y0, x1, y1 = cell_box(index, BOARD_SIZE - 1)
         _arrow(draw, x1 + 12, y0 + CELL // 2, "left", ARROW)
 
-    # 行列坐标
+    # 坐标：上方 a-g（左→右），左侧 1-7（下→上）
     for index in range(BOARD_SIZE):
-        x0, y0, _x1, _y1 = cell_box(0, index)
+        x0, _y0, _x1, _y1 = cell_box(0, index)
         draw.text(
-            (x0 + CELL // 2 - 5, origin_y - 26), str(index + 1), font=f_small, fill=FG
+            (x0 + CELL // 2 - 5, origin_y - 26),
+            COLUMN_LETTERS[index],
+            font=f_small,
+            fill=FG,
         )
+        _x0, y0, _x1, _y1 = cell_box(index, 0)
         draw.text(
-            (origin_x - 26, y0 + CELL // 2 - 8), str(index + 1), font=f_small, fill=FG
+            (origin_x - 26, y0 + CELL // 2 - 8),
+            str(BOARD_SIZE - index),
+            font=f_small,
+            fill=FG,
         )
 
     # 棋子

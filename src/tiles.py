@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+import re
+
 # 方向编号
 NORTH, EAST, SOUTH, WEST = 0, 1, 2, 3
 DIRS = {NORTH: (-1, 0), EAST: (0, 1), SOUTH: (1, 0), WEST: (0, -1)}
@@ -23,6 +25,12 @@ OPPOSITE = {NORTH: SOUTH, EAST: WEST, SOUTH: NORTH, WEST: EAST}
 
 BOARD_SIZE = 7
 CORNERS = 4
+
+# 玩家看到的坐标：列 a-g 从左到右，行 1-7 从下到上（左下角是 a1）
+COLUMN_LETTERS = "abcdefg"
+
+# 可推的行/列（内部 0 基下标）：第 b/d/f 列与第 2/4/6 行
+PUSH_LINES = (1, 3, 5)
 
 # 各牌型在 rotation=0 时的出口
 BASE_OPENINGS: dict[str, tuple[int, ...]] = {
@@ -189,3 +197,52 @@ COLOR_NAMES = {
 def push_lines() -> tuple[int, ...]:
     """可推的行/列下标（0 基）。"""
     return (1, 3, 5)
+
+
+# ----------------------------------------------------------------------
+# 坐标
+# ----------------------------------------------------------------------
+def column_index(letter: str) -> int | None:
+    """列字母 a-g → 内部列下标；非法返回 ``None``。"""
+    letter = (letter or "").strip().lower()
+    if len(letter) == 1 and letter in COLUMN_LETTERS:
+        return COLUMN_LETTERS.index(letter)
+    return None
+
+
+def cell_name(row: int, col: int) -> str:
+    """内部 ``(row, col)`` → 玩家坐标，如 ``c3``（列 a-g，行 1-7 下→上）。"""
+    return f"{COLUMN_LETTERS[col]}{BOARD_SIZE - row}"
+
+
+def parse_cell(text: str) -> tuple[int, int] | None:
+    """解析玩家坐标 ``c3`` / ``C3`` / ``3c`` → 内部 ``(row, col)``。"""
+    text = (text or "").strip()
+    match = re.fullmatch(r"([a-gA-G])\s*([1-7])", text)
+    if match:
+        col = column_index(match.group(1))
+        return BOARD_SIZE - int(match.group(2)), col
+    match = re.fullmatch(r"([1-7])\s*([a-gA-G])", text)
+    if match:
+        col = column_index(match.group(2))
+        return BOARD_SIZE - int(match.group(1)), col
+    return None
+
+
+def push_line_name(side: str, index: int) -> str:
+    """推牌对象的展示名：上下按列字母（b/d/f），左右按行号（2/4/6）。"""
+    if side in ("上", "下"):
+        return COLUMN_LETTERS[index]
+    return str(BOARD_SIZE - index)
+
+
+def parse_push_line(side: str, token: str) -> int | None:
+    """把推牌的列字母/行号解析成内部下标；不在可推线上返回 ``None``。"""
+    if side in ("上", "下"):
+        index = column_index(token)
+        return index if index in PUSH_LINES else None
+    token = (token or "").strip()
+    if token.isdigit() and 1 <= int(token) <= BOARD_SIZE:
+        index = BOARD_SIZE - int(token)
+        return index if index in PUSH_LINES else None
+    return None

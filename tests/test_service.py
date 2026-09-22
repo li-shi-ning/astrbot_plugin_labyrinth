@@ -8,6 +8,7 @@ from src.buttons import build_buttons
 from src.engine import PHASE_MOVE, PHASE_PUSH, GameError
 from src.render import target_payload
 from src.service import GameService
+from src.tiles import cell_name
 
 
 def flat(reply) -> str:
@@ -51,30 +52,38 @@ def test_no_game_hints_create() -> None:
 
 
 def test_parse_push_variants() -> None:
+    """上下推要选列字母，左右推要选行号；只能推 b/d/f 与 2/4/6。"""
     service = make_service()
     game = service.game("g1")
     assert game is not None
     game.start("u1")
-    assert service._parse_push("上 2") == ("上", 1)
-    assert service._parse_push("2 上") == ("上", 1)
-    assert service._parse_push("下 6") == ("下", 5)
-    assert service._parse_push("left 4") == ("左", 3)
+    assert service._parse_push("上 b") == ("上", 1)
+    assert service._parse_push("下 d") == ("下", 3)
+    assert service._parse_push("左 2") == ("左", 5)
+    assert service._parse_push("右 6") == ("右", 1)
+    assert service._parse_push("b 上") == ("上", 1)
+    assert service._parse_push("↑ f") == ("上", 5)
     with pytest.raises(GameError):
-        service._parse_push("上 3")
+        service._parse_push("上 a")  # a 列推不了
     with pytest.raises(GameError):
-        service._parse_push("左 1")
+        service._parse_push("左 3")  # 第 3 行推不了
     with pytest.raises(GameError):
         service._parse_push("上")
 
 
 def test_parse_cell() -> None:
-    assert GameService._parse_cell("3 4") == (2, 3)
-    assert GameService._parse_cell("1-1") == (0, 0)
-    assert GameService._parse_cell("7,7") == (6, 6)
+    """列 a-g 从左到右，行 1-7 从下到上。"""
+    assert GameService._parse_cell("c3") == (4, 2)
+    assert GameService._parse_cell("C3") == (4, 2)
+    assert GameService._parse_cell("3c") == (4, 2)
+    assert GameService._parse_cell("c 3") == (4, 2)
+    assert GameService._parse_cell("a1") == (6, 0)
+    assert GameService._parse_cell("g7") == (0, 6)
+    assert GameService._parse_cell("d4") == (3, 3)
     with pytest.raises(GameError):
-        GameService._parse_cell("0 1")
+        GameService._parse_cell("h3")
     with pytest.raises(GameError):
-        GameService._parse_cell("8 1")
+        GameService._parse_cell("c8")
     with pytest.raises(GameError):
         GameService._parse_cell("3")
 
@@ -84,15 +93,15 @@ def test_push_then_move_flow() -> None:
     game = service.game("g1")
     assert game is not None
     game.start("u1")
-    text = flat(service.dispatch("g1", "u1", "甲", "推 上 2"))
+    text = flat(service.dispatch("g1", "u1", "甲", "推 上 b"))
     assert "推入" in text and game.phase == PHASE_MOVE
     # 越界坐标一定被拒
     with pytest.raises(GameError):
-        service.dispatch("g1", "u1", "甲", "走 0 1")
+        service.dispatch("g1", "u1", "甲", "走 h1")
     # 走到一个真实可达格（棋盘随机，所以从引擎里取）
     target = sorted(game.reachable(game.players[0]))[-1]
     assert "移动完成" in flat(
-        service.dispatch("g1", "u1", "甲", f"走 {target[0] + 1} {target[1] + 1}")
+        service.dispatch("g1", "u1", "甲", f"走 {cell_name(*target)}")
     )
     assert game.phase == PHASE_PUSH
     assert game.current is not None and game.current.user_id == "u2"
@@ -147,3 +156,108 @@ def test_target_payload_uses_emoji() -> None:
     from src.tiles import TREASURE_EMOJI
 
     assert TREASURE_EMOJI[player.treasures[0]] in payload
+
+
+def test_push_buttons_layout_one_column_per_side() -> None:
+    """推牌按钮排成 3 行 4 列，一列一边。"""
+    from src.buttons import build_buttons
+    from src.qqofficial import build_keyboard
+
+    service = make_service()
+    game = service.game("g1")
+    assert game is not None
+    game.start("u1")
+    rows = build_keyboard(build_buttons(game, "u1"))["content"]["rows"]
+    labels = [[b["render_data"]["label"] for b in r["buttons"]] for r in rows]
+    push_rows = [r for r in labels if any(x.startswith("推") for x in r)]
+    assert len(push_rows) == 3
+    assert all(len(r) == 4 for r in push_rows)
+    # 每一列固定一个方向：上 / 下 / 左 / 右
+    for column, side in enumerate(["上", "下", "左", "右"]):
+        assert [row[column][1] for row in push_rows] == [side] * 3
+    # 上下按列字母 b/d/f，左右按行号 2/4/6
+    for column in (0, 1):
+        assert [row[column][2:] for row in push_rows] == ["b", "d", "f"]
+    for column in (2, 3):
+        assert [row[column][2:] for row in push_rows] == ["2", "4", "6"]
+
+
+def test_move_buttons_exist_in_move_phase() -> None:
+    """移动阶段给出「走xx」按钮。"""
+    from src.buttons import build_buttons
+    from src.engine import PHASE_MOVE, Tile
+    from src.qqofficial import build_keyboard
+    from src.tiles import BOARD_SIZE
+
+    service = make_service()
+    game = service.game("g1")
+    assert game is not None
+    game.start("u1")
+    # 换成确定性棋盘（整列直路），避免随机棋盘把玩家封死
+    game.grid = [
+        [Tile("straight") for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)
+    ]
+    game.players[0].pos = (0, 0)
+    game.phase = PHASE_MOVE
+    rows = build_keyboard(build_buttons(game, "u1"))["content"]["rows"]
+    labels = [b["render_data"]["label"] for r in rows for b in r["buttons"]]
+    move_buttons = [x for x in labels if x.startswith("走")]
+    assert move_buttons
+    assert all(len(x) == 3 for x in move_buttons)  # 走 + 列字母 + 行号
+    assert "停手" in labels
+    assert all(
+        b["action"]["data"].startswith("迷宫 走 ")
+        for r in rows
+        for b in r["buttons"]
+        if b["render_data"]["label"].startswith("走")
+    )
+
+
+def test_game_end_destroys_room() -> None:
+    """对局结束后播报胜利玩家并销毁房间。"""
+    service = make_service()
+    game = service.game("g1")
+    assert game is not None
+    game.start("u1")
+    player = game.players[0]
+    player.treasures = ["Rat"]
+    player.collected = 1
+    player.pos = player.start
+    game.turn_index = 0
+    game.phase = PHASE_MOVE
+
+    reply = service.dispatch("g1", "u1", "甲", f"走 {cell_name(*player.start)}")
+    assert "获胜" in reply.text and "甲" in reply.text
+    assert "房间已销毁" in reply.text
+    assert service.game("g1") is None  # 房间已销毁
+    assert reply.board is not None  # 但仍能画最后一张棋盘
+
+
+def test_admin_can_dissolve_room() -> None:
+    """管理员和房主都能解散，包括对局进行中。"""
+    service = make_service()
+    game = service.game("g1")
+    assert game is not None
+    game.start("u1")
+    # 非房主、非管理员不行
+    with pytest.raises(GameError):
+        service.dispatch("g1", "u2", "乙", "解散")
+    # 管理员可以
+    assert "解散" in flat(service.dispatch("g1", "u9", "路人", "解散", is_admin=True))
+    assert service.game("g1") is None
+
+    # 房主也可以
+    service.dispatch("g1", "u1", "甲", "创建")
+    service.dispatch("g1", "u2", "乙", "加入")
+    service.dispatch("g1", "u1", "甲", "开始")
+    assert "解散" in flat(service.dispatch("g1", "u1", "甲", "解散"))
+    assert service.game("g1") is None
+
+
+def test_waiting_room_hint_is_not_turn_prompt() -> None:
+    """未开局时不要显示「轮到你推牌」。"""
+    service = GameService()
+    reply = service.dispatch("g1", "u1", "甲", "创建")
+    text = flat(reply)
+    assert "等待房主点击「开始游戏」" in text
+    assert "推牌" not in text

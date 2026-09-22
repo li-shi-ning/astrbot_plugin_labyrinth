@@ -13,6 +13,7 @@ from .tiles import (
     FIXED_TILES,
     LOOSE_BAG,
     OPPOSITE,
+    PUSH_LINES,
     START_POSITIONS,
     TREASURES,
 )
@@ -23,7 +24,6 @@ PHASE_ENDED = "ended"
 
 MIN_PLAYERS = 2
 MAX_PLAYERS = 4
-PUSH_LINES = (1, 3, 5)  # 可推的行/列（0 基）
 SIDES = ("上", "下", "左", "右")
 
 
