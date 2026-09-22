@@ -182,8 +182,8 @@ def test_push_buttons_layout_one_column_per_side() -> None:
         assert [row[column][2:] for row in push_rows] == ["2", "4", "6"]
 
 
-def test_move_buttons_exist_in_move_phase() -> None:
-    """移动阶段给出「走xx」按钮。"""
+def test_move_phase_has_single_move_button() -> None:
+    """移动阶段只给一个「移动」按钮，点完补成「迷宫 走 」。"""
     from src.buttons import build_buttons
     from src.engine import PHASE_MOVE, Tile
     from src.qqofficial import build_keyboard
@@ -193,24 +193,49 @@ def test_move_buttons_exist_in_move_phase() -> None:
     game = service.game("g1")
     assert game is not None
     game.start("u1")
-    # 换成确定性棋盘（整列直路），避免随机棋盘把玩家封死
     game.grid = [
         [Tile("straight") for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)
     ]
     game.players[0].pos = (0, 0)
     game.phase = PHASE_MOVE
+
     rows = build_keyboard(build_buttons(game, "u1"))["content"]["rows"]
-    labels = [b["render_data"]["label"] for r in rows for b in r["buttons"]]
-    move_buttons = [x for x in labels if x.startswith("走")]
-    assert move_buttons
-    assert all(len(x) == 3 for x in move_buttons)  # 走 + 列字母 + 行号
-    assert "停手" in labels
-    assert all(
-        b["action"]["data"].startswith("迷宫 走 ")
+    items = [
+        (b["render_data"]["label"], b["action"]["data"])
         for r in rows
         for b in r["buttons"]
-        if b["render_data"]["label"].startswith("走")
-    )
+    ]
+    move_buttons = [item for item in items if item[0] == "移动"]
+    assert len(move_buttons) == 1
+    assert move_buttons[0][1] == "迷宫 走 "  # 只差坐标
+    assert "停手" in [label for label, _ in items]
+    assert not [label for label, _ in items if label.startswith("走")]
+
+
+def test_move_rejects_unreachable_cell() -> None:
+    """坐标合法但走不到时,引擎会拒绝。"""
+    from src.engine import PHASE_MOVE, Tile
+    from src.tiles import BOARD_SIZE, cell_name
+
+    service = make_service()
+    game = service.game("g1")
+    assert game is not None
+    game.start("u1")
+    game.grid = [
+        [Tile("straight") for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)
+    ]
+    game.players[0].pos = (3, 0)  # d4
+    game.phase = PHASE_MOVE
+
+    # 同一列可达
+    assert "移动完成" in flat(service.dispatch("g1", "u1", "甲", "走 a1"))
+    # 换一个人、重新摆放：邻列走不到（全是上下直路）
+    game.players[0].pos = (0, 0)
+    game.turn_index = 0
+    game.phase = PHASE_MOVE
+    assert cell_name(0, 0) == "a7"
+    with pytest.raises(GameError):
+        service.dispatch("g1", "u1", "甲", "走 b6")
 
 
 def test_game_end_destroys_room() -> None:

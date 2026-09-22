@@ -54,13 +54,14 @@ def render_hint(game: Game) -> str:
             "推牌按钮：上下推选列 a-g，左右推选行 1-7（只能推 b/d/f 与 2/4/6）"
         )
     cells = sorted(game.reachable(current))
-    listed = " ".join(cell_name(r, c) for r, c in cells[:24])
-    if len(cells) > 24:
+    listed = " ".join(cell_name(r, c) for r, c in cells[:28])
+    if len(cells) > 28:
         listed += " …"
     return (
         f"▶ {label} {current.name} 已推入棋盘\n"
-        f"可达格子：{listed}\n"
-        "移动：点「走xx」按钮，或直接发「迷宫 走 c3」（不走点「停手」）"
+        "移动：点「移动」按钮后补成「迷宫 走 c3」，"
+        "或直接发「迷宫 走 c3」（列 a-g，行 1-7 从下往上）\n"
+        f"可达格子：{listed}"
     )
 
 

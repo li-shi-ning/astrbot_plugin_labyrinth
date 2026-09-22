@@ -4,8 +4,9 @@
 
     第 1 行   🎯 A·目标 | 🎯 B·目标 | 🎯 C·目标 | 🎯 D·目标
     第 2-4 行 推上b | 推下b | 推左2 | 推右2      （一列一边，上下按列字母、左右按行号）
-              （移动阶段则是 12 个「走xx」格子按钮）
-    第 5 行   转手牌/停手 | 棋盘状态 | 玩法规则 | 解散牌局
+    第 5 行   转手牌 | 棋盘状态 | 玩法规则 | 解散牌局
+
+移动阶段只给一个「移动」按钮（点完变成「迷宫 走 」，坐标自己补）和「停手」。
 """
 
 from __future__ import annotations
@@ -13,9 +14,8 @@ from __future__ import annotations
 from .engine import PHASE_ENDED, PHASE_MOVE, PHASE_PUSH, Game
 from .qqofficial import Button
 from .render import target_payload
-from .tiles import PUSH_LINES, cell_name, push_line_name
+from .tiles import PUSH_LINES, push_line_name
 
-MOVE_BUTTON_LIMIT = 12  # 3 行 × 4 列
 PUBLIC_BUTTONS = ("棋盘状态", "玩法规则")
 
 
@@ -90,24 +90,11 @@ def _playing_buttons(game: Game, requester_id: str, is_admin: bool) -> list[Butt
                 Button("lab_rotate", "转手牌", "迷宫 转", only_for=actor, new_row=True)
             )
         elif game.phase == PHASE_MOVE:
-            # 第 2-4 行：可达格子按钮（按坐标中性顺序，不泄露目标位置）
-            cells = [
-                cell for cell in sorted(game.reachable(current)) if cell != current.pos
-            ][:MOVE_BUTTON_LIMIT]
-            for index, (row, col) in enumerate(cells):
-                name = cell_name(row, col)
-                buttons.append(
-                    Button(
-                        f"lab_move_{row}_{col}",
-                        f"走{name}",
-                        f"迷宫 走 {name}",
-                        only_for=actor,
-                        new_row=index == 0,
-                    )
-                )
+            # 只给一个「移动」按钮：点完补成「迷宫 走 」，坐标自己填，引擎校验可达性
             buttons.append(
-                Button("lab_stop", "停手", "迷宫 停", only_for=actor, new_row=True)
+                Button("lab_move", "移动", "迷宫 走 ", only_for=actor, new_row=True)
             )
+            buttons.append(Button("lab_stop", "停手", "迷宫 停", only_for=actor))
 
     buttons.extend(_public_buttons(game, requester_id, is_admin, join_row=True))
     return buttons
