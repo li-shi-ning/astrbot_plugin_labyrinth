@@ -14,6 +14,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from .engine import PUSH_LINES, Game, Player, Tile
@@ -42,15 +43,21 @@ MUTED = (150, 152, 160)
 HIGHLIGHT = (255, 222, 120)
 ARROW = (108, 122, 156)
 
-FONT_CANDIDATES = (
-    "/AstrBot/data/font.ttf",
-    "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
-    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
-    "C:/Windows/Fonts/msyh.ttc",
-    "/System/Library/Fonts/PingFang.ttc",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-)
+def _font_candidates() -> tuple[str, ...]:
+    candidates = [
+        "/usr/share/fonts/truetype/wqy/wqy-microhei.ttc",
+        "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "/System/Library/Fonts/PingFang.ttc",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    ]
+    windir = os.environ.get("WINDIR")
+    if windir:
+        candidates.insert(0, str(Path(windir) / "Fonts" / "msyh.ttc"))
+    return tuple(candidates)
+
+
+FONT_CANDIDATES = _font_candidates()
 
 PAWN_COLORS = {
     "yellow": (240, 180, 30),
