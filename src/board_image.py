@@ -189,7 +189,42 @@ def render_board(
 # 单张牌
 # ----------------------------------------------------------------------
 def _render_tile(tile: Tile):
-    """渲染一张牌（含宝藏）。"""
+    """渲染一张牌：先取牌型底图，再把宝藏图标贴上去。"""
+    from PIL import ImageDraw
+
+    image = _tile_base(tile)
+    if tile.treasure:
+        _draw_treasure(image, ImageDraw.Draw(image), tile.treasure)
+    return image
+
+
+def _tile_base(tile: Tile):
+    """牌型底图（已按 ``tile.rotation`` 顺时针旋转）。
+
+    优先用 ``assets/tiles/<kind>.png``（rotation=0 的朝向），
+    缺失时按出口程序化画一张。
+    """
+    from PIL import Image
+
+    path = TILE_DIR / f"{tile.kind}.png"
+    if path.is_file():
+        try:
+            with Image.open(path) as source:
+                base = source.convert("RGBA").resize((CELL, CELL), Image.LANCZOS)
+        except (OSError, ValueError):
+            base = None
+        if base is not None:
+            if tile.rotation:
+                # Pillow 正角度是逆时针，取负号得到顺时针
+                base = base.rotate(-90 * tile.rotation)
+            canvas = Image.new("RGB", (CELL, CELL), WALL)
+            canvas.paste(base, (0, 0), base)
+            return canvas
+    return _draw_base(tile)
+
+
+def _draw_base(tile: Tile):
+    """没有素材时按出口程序化画通道。"""
     from PIL import Image, ImageDraw
 
     image = Image.new("RGB", (CELL, CELL), WALL)
@@ -223,8 +258,6 @@ def _render_tile(tile: Tile):
         ],
         fill=FLOOR,
     )
-    if tile.treasure:
-        _draw_treasure(image, draw, tile.treasure)
     return image
 
 
